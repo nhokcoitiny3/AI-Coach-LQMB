@@ -9,8 +9,9 @@ from app.db.session import get_session
 from app.models import ImportedImage, ParsingJob, Player
 from app.datafeed.service import list_datafeed_status, refresh_datafeed
 from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewUpdate
-from app.services.ingestion import persist_match
+from app.services.ingestion import persist_match, process_job
 from app.services.scout import scout
+from app.vision.parser import vision_is_configured
 
 router = APIRouter(prefix="/api/v1")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -62,7 +63,7 @@ async def jobs(player_id: uuid.UUID, session: AsyncSession = Depends(get_session
 
 
 @router.post("/players/{player_id}/screenshots", response_model=list[JobOut], status_code=status.HTTP_202_ACCEPTED)
-async def upload_screenshots(player_id: uuid.UUID, files: list[UploadFile] = File(...), session: AsyncSession = Depends(get_session)):
+async def upload_screenshots(player_id: uuid.UUID, background: BackgroundTasks, files: list[UploadFile] = File(...), session: AsyncSession = Depends(get_session)):
     await get_player(player_id, session)
     settings = get_settings(); settings.upload_dir.mkdir(parents=True, exist_ok=True); jobs = []
     for file in files:
@@ -77,6 +78,9 @@ async def upload_screenshots(player_id: uuid.UUID, files: list[UploadFile] = Fil
         session.add(image); await session.flush()
         job = ParsingJob(image_id=image.id, status="pending"); session.add(job); await session.flush(); jobs.append(job)
     await session.commit()
+    if vision_is_configured():
+        for job in jobs:
+            background.add_task(process_job, job.id)
     return jobs
 
 

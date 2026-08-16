@@ -48,7 +48,7 @@ Production has no source bind mounts and uses persistent database and upload vol
 
 ## Environment
 
-Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `VISION_API_KEY`, and `MAX_UPLOAD_SIZE_MB`. Leave `VISION_PROVIDER` empty until the real datafeed and vision provider are configured.
+Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, and `MAX_UPLOAD_SIZE_MB`. Leave `VISION_PROVIDER` empty until the real datafeed and vision provider are configured. Set `VISION_PROVIDER=gemini` only with `GEMINI_API_KEY` supplied through the ignored `.env` file or deployment secret.
 
 If host port `8000` is already occupied, set `BACKEND_PORT=8001`. The frontend proxies browser API requests internally, so its public URL does not need to change.
 

@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/lien_quan"
     vision_provider: str = ""
-    vision_api_key: str = ""
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-flash-latest"
     max_upload_size_mb: int = 10
     upload_dir: Path = Path("/app/uploads")
 
