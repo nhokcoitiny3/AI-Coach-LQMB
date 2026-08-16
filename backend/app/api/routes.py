@@ -6,8 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_session
-from app.models import ImportedImage, ParsingJob, Player
+from app.models import Hero, ImportedImage, Match, ParsingJob, Player
 from app.datafeed.service import catalog_hero, catalog_heroes, hero_counters, list_datafeed_status, meta_dashboard, refresh_datafeed
+from app.datafeed.normalizer import normalize_name
 from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewBatchUpdate, ReviewUpdate
 from app.services.ingestion import persist_match, process_job
 from app.services.scout import scout
@@ -83,6 +84,35 @@ async def player_scout(player_id: uuid.UUID, session: AsyncSession = Depends(get
 async def jobs(player_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
     await get_player(player_id, session)
     return list((await session.scalars(select(ParsingJob).join(ImportedImage).where(ImportedImage.player_id == player_id).order_by(ParsingJob.created_at.desc()))).all())
+
+
+@router.get("/players/{player_id}/matches")
+async def matches(player_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    await get_player(player_id, session)
+    rows = (await session.execute(select(Match, Hero).join(Hero).where(Match.player_id == player_id).order_by(Match.played_at.desc()))).all()
+    return [{"id": str(match.id), "hero": hero.name, "hero_id": str(hero.id), "image_url": hero.image_url, "role": match.role, "result": match.result, "kills": match.kills, "deaths": match.deaths, "assists": match.assists, "played_at": match.played_at} for match, hero in rows]
+
+
+@router.put("/matches/{match_id}")
+async def update_match(match_id: uuid.UUID, body: ReviewUpdate, session: AsyncSession = Depends(get_session)):
+    match = await session.get(Match, match_id)
+    hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalize_name(body.hero)))
+    if not match or not hero:
+        raise HTTPException(404, "Match or hero was not found")
+    match.hero_id = hero.id
+    match.role, match.result = body.role, body.result
+    match.kills, match.deaths, match.assists = body.kills, body.deaths, body.assists
+    await session.commit()
+    return {"id": str(match.id), "status": "updated"}
+
+
+@router.delete("/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_match(match_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    match = await session.get(Match, match_id)
+    if not match:
+        raise HTTPException(404, "Match was not found")
+    await session.delete(match)
+    await session.commit()
 
 
 @router.post("/players/{player_id}/screenshots", response_model=list[JobOut], status_code=status.HTTP_202_ACCEPTED)
