@@ -49,7 +49,7 @@ Production has no source bind mounts and uses persistent database and upload vol
 
 Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `VISION_API_KEY`, and `MAX_UPLOAD_SIZE_MB`. The MVP supports `VISION_PROVIDER=mock`; no external AI key is necessary.
 
-If host port `8000` is already occupied, set both `BACKEND_PORT=8001` and `NEXT_PUBLIC_API_URL=http://localhost:8001` before building the frontend.
+If host port `8000` is already occupied, set `BACKEND_PORT=8001`. The frontend proxies browser API requests internally, so its public URL does not need to change.
 
 ## Current limitations
 
