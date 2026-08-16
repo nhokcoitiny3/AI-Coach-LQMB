@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_session
 from app.models import ImportedImage, ParsingJob, Player
-from app.datafeed.service import list_datafeed_status, refresh_datafeed
+from app.datafeed.service import catalog_heroes, list_datafeed_status, meta_dashboard, refresh_datafeed
 from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewUpdate
 from app.services.ingestion import persist_match, process_job
 from app.services.scout import scout
@@ -20,6 +20,16 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 @router.get("/datafeed/sources")
 async def datafeed_sources(session: AsyncSession = Depends(get_session)):
     return await list_datafeed_status(session)
+
+
+@router.get("/catalog/heroes")
+async def heroes_catalog(session: AsyncSession = Depends(get_session)):
+    return await catalog_heroes(session)
+
+
+@router.get("/meta/dashboard")
+async def dashboard_meta(session: AsyncSession = Depends(get_session)):
+    return await meta_dashboard(session)
 
 
 @router.post("/datafeed/refresh", status_code=status.HTTP_202_ACCEPTED)

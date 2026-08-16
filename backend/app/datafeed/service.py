@@ -68,4 +68,30 @@ async def _refresh_collector(collector: Collector, client: httpx.AsyncClient) ->
 
 async def list_datafeed_status(session):
     sources = list((await session.scalars(select(DataSource).order_by(DataSource.key))).all())
-    return [{"key": source.key, "name": source.name, "region": source.region, "base_url": source.base_url, "enabled": source.enabled} for source in sources]
+    result = []
+    for source in sources:
+        latest_run = await session.scalar(select(DataFeedRun).where(DataFeedRun.source_id == source.id).order_by(DataFeedRun.started_at.desc()))
+        result.append({"key": source.key, "name": source.name, "region": source.region, "base_url": source.base_url, "enabled": source.enabled, "last_run": None if latest_run is None else {"status": latest_run.status, "records_written": latest_run.records_written, "finished_at": latest_run.finished_at}})
+    return result
+
+
+async def catalog_heroes(session, source_key: str = "rovmeta") -> list[dict]:
+    rows = (await session.execute(select(Hero, HeroMetaSnapshot, DataSource).join(HeroMetaSnapshot, HeroMetaSnapshot.hero_id == Hero.id).join(DataSource, DataSource.id == HeroMetaSnapshot.source_id).where(DataSource.key == source_key).order_by(Hero.id, HeroMetaSnapshot.captured_at.desc()))).all()
+    seen: set = set()
+    catalog = []
+    for hero, meta, source in rows:
+        if hero.id in seen:
+            continue
+        seen.add(hero.id)
+        catalog.append({"id": str(hero.id), "name": hero.name, "role": hero.role, "aliases": hero.aliases, "tier": meta.tier, "pick_rate": meta.pick_rate, "ban_rate": meta.ban_rate, "win_rate": meta.win_rate, "patch_version": meta.patch_version, "region": meta.region, "source": source.key, "source_url": meta.source_url, "captured_at": meta.captured_at})
+    return catalog
+
+
+async def meta_dashboard(session) -> dict:
+    heroes = await catalog_heroes(session)
+    tier_counts: dict[str, int] = {}
+    role_counts: dict[str, int] = {}
+    for hero in heroes:
+        tier_counts[hero["tier"] or "unrated"] = tier_counts.get(hero["tier"] or "unrated", 0) + 1
+        role_counts[hero["role"]] = role_counts.get(hero["role"], 0) + 1
+    return {"hero_count": len(heroes), "tier_distribution": tier_counts, "role_distribution": role_counts, "top_meta": sorted(heroes, key=lambda hero: ((hero["tier"] == "S"), hero["win_rate"] or 0, hero["pick_rate"] or 0), reverse=True)[:12], "sources": await list_datafeed_status(session)}
