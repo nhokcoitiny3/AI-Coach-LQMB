@@ -17,3 +17,8 @@ def test_extracts_lien_quan_role_without_fixture_data():
 def test_extracts_rov_lane_from_hero_page():
     soup = BeautifulSoup("<div>Aoi S TIER assassin Jungle Hard</div>", "html.parser")
     assert normalize_role(_rov_role(soup)) == "jungle"
+
+
+def test_extracts_rov_class_when_the_page_has_no_explicit_lane():
+    soup = BeautifulSoup("<div>Violet S TIER marksman Marksman / ADC Medium</div>", "html.parser")
+    assert normalize_role(_rov_role(soup)) == "dragon"

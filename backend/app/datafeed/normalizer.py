@@ -11,6 +11,12 @@ def normalize_name(value: str) -> str:
 
 def normalize_role(value: str) -> str:
     lowered = value.lower()
+    for source_role, normalized_role in {
+        "assassin": "jungle", "mage": "mid", "marksman": "dragon",
+        "adc": "dragon", "warrior": "slayer", "fighter": "slayer",
+    }.items():
+        if source_role in lowered:
+            return normalized_role
     for role, names in {
         "jungle": ("jungle", "rung", "sát thủ", "assassin"),
         "mid": ("mid", "pháp sư", "mage"),

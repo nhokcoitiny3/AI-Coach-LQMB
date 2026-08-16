@@ -140,6 +140,11 @@ def _lq_role(soup: BeautifulSoup) -> str:
 def _rov_role(soup: BeautifulSoup) -> str:
     text = soup.get_text(" ", strip=True).replace("\\n", " ")
     match = re.search(r"\bTIER\b\s+\w+\s+(Jungle|Mid|Dragon(?: Lane)?|Slayer|Support)\b", text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    # Some ROVMeta pages expose a class (for example, "S TIER marksman")
+    # instead of a lane. Preserve it for normalize_role below.
+    match = re.search(r"\bTIER\b\s+(assassin|mage|marksman|adc|warrior|fighter|tank|support)\b", text, re.IGNORECASE)
     return match.group(1) if match else "unknown"
 
 
