@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.db.session import get_session
 from app.models import ImportedImage, ParsingJob, Player
 from app.datafeed.service import catalog_hero, catalog_heroes, hero_counters, list_datafeed_status, meta_dashboard, refresh_datafeed
-from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewUpdate
+from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewBatchUpdate, ReviewUpdate
 from app.services.ingestion import persist_match, process_job
 from app.services.scout import scout
 from app.vision.parser import vision_is_configured
@@ -122,6 +122,24 @@ async def manual_review(job_id: uuid.UUID, body: ReviewUpdate, session: AsyncSes
         raise HTTPException(404, "Job is not available for review")
     data = body.model_dump() | {"confidence": 1.0}
     await persist_match(session, job, job.image.player_id, data)
+    job.status = "completed"
+    await session.commit()
+    await session.refresh(job)
+    return job
+
+
+@router.put("/jobs/{job_id}/manual-review-batch", response_model=JobOut)
+async def manual_review_batch(job_id: uuid.UUID, body: ReviewBatchUpdate, session: AsyncSession = Depends(get_session)):
+    job = await session.get(ParsingJob, job_id)
+    if not job or job.status not in {"pending", "review"}:
+        raise HTTPException(404, "Job is not available for review")
+    saved = []
+    for index, row in enumerate(body.matches):
+        data = row.model_dump() | {"confidence": 1.0}
+        source_hash = hashlib.sha256(f"{job.image.sha256}:{index}".encode()).hexdigest()
+        match = await persist_match(session, job, job.image.player_id, data, source_hash=source_hash)
+        saved.append({**data, "match_id": str(match.id)})
+    job.parsed_payload = {"matches": saved}
     job.status = "completed"
     await session.commit()
     await session.refresh(job)

@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from sqlalchemy import select
@@ -16,16 +17,20 @@ async def process_job(job_id) -> None:
         await session.commit()
         try:
             heroes = list((await session.scalars(select(Hero).order_by(Hero.name))).all())
-            parsed = await get_vision_parser([hero.name for hero in heroes]).parse_match_screenshot(Path(job.image.stored_path))
-            data = parsed.to_dict()
-            hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalize_name(parsed.hero)))
-            if hero is None or parsed.confidence < 0.8:
+            parsed_matches = await get_vision_parser([hero.name for hero in heroes]).parse_match_screenshot(Path(job.image.stored_path))
+            data = {"matches": [parsed.to_dict() for parsed in parsed_matches]}
+            valid = [await session.scalar(select(Hero).where(Hero.normalized_name == normalize_name(parsed.hero))) for parsed in parsed_matches]
+            if any(hero is None or parsed.confidence < 0.8 for hero, parsed in zip(valid, parsed_matches)):
                 job.status = "review"
                 job.parsed_payload = data
-                job.error = "Hero not found in catalog" if hero is None else None
+                job.error = "One or more heroes were not found in catalog" if any(hero is None for hero in valid) else None
             else:
-                data["hero"] = hero.name
-                await persist_match(session, job, job.image.player_id, data)
+                saved = []
+                for index, parsed in enumerate(parsed_matches):
+                    row = parsed.to_dict(); row["hero"] = valid[index].name
+                    match = await persist_match(session, job, job.image.player_id, row, source_hash=hashlib.sha256(f"{job.image.sha256}:{index}".encode()).hexdigest())
+                    saved.append({**row, "match_id": str(match.id)})
+                job.parsed_payload = {"matches": saved}
                 job.status = "completed"
             await session.commit()
         except Exception as exc:
@@ -34,11 +39,11 @@ async def process_job(job_id) -> None:
             await session.commit()
 
 
-async def persist_match(session, job, player_id, data: dict) -> Match:
+async def persist_match(session, job, player_id, data: dict, source_hash: str | None = None) -> Match:
     hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalize_name(data["hero"])))
     if not hero:
         raise ValueError("Parsed hero is absent from the versioned catalog")
-    match = Match(player_id=player_id, hero_id=hero.id, played_at=datetime.now(timezone.utc), role=data["role"], result=data["result"], kills=data["kills"], deaths=data["deaths"], assists=data["assists"], confidence=data.get("confidence", 1.0), source_hash=job.image.sha256)
+    match = Match(player_id=player_id, hero_id=hero.id, played_at=datetime.now(timezone.utc), role=data["role"], result=data["result"], kills=data["kills"], deaths=data["deaths"], assists=data["assists"], confidence=data.get("confidence", 1.0), source_hash=source_hash or job.image.sha256)
     session.add(match); await session.flush()
     job.parsed_payload = {**data, "match_id": str(match.id)}
     return match

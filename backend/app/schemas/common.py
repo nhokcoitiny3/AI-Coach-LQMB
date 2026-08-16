@@ -32,5 +32,9 @@ class ReviewUpdate(BaseModel):
     assists: int = Field(ge=0, le=99)
 
 
+class ReviewBatchUpdate(BaseModel):
+    matches: list[ReviewUpdate] = Field(min_length=1, max_length=20)
+
+
 class DataFeedRefresh(BaseModel):
     sources: list[str] | None = None
