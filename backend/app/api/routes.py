@@ -1,18 +1,31 @@
 import hashlib
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_session
 from app.models import ImportedImage, ParsingJob, Player
-from app.schemas.common import JobOut, PlayerCreate, PlayerOut, ReviewUpdate
+from app.datafeed.service import list_datafeed_status, refresh_datafeed
+from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewUpdate
 from app.services.ingestion import persist_match
 from app.services.scout import scout
 
 router = APIRouter(prefix="/api/v1")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+@router.get("/datafeed/sources")
+async def datafeed_sources(session: AsyncSession = Depends(get_session)):
+    return await list_datafeed_status(session)
+
+
+@router.post("/datafeed/refresh", status_code=status.HTTP_202_ACCEPTED)
+async def refresh_sources(body: DataFeedRefresh, background: BackgroundTasks):
+    source_keys = set(body.sources) if body.sources else None
+    background.add_task(refresh_datafeed, source_keys)
+    return {"status": "scheduled", "sources": body.sources or "all"}
 
 
 @router.get("/players", response_model=list[PlayerOut])

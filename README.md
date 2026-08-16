@@ -31,6 +31,9 @@ docker compose exec backend ruff check .
 docker compose run --rm frontend-tools npm run lint
 docker compose exec backend ruff format .
 docker compose run --rm frontend-tools npm run format
+
+# Crawl the configured public catalog/meta sources (rate-limited, with provenance)
+docker compose exec backend python -m app.datafeed.cli
 ```
 
 `Makefile` provides the same shortcuts when `make` is already available, but it is never required.
@@ -52,3 +55,7 @@ If host port `8000` is already occupied, set `BACKEND_PORT=8001`. The frontend p
 ## Current limitations
 
 The project deliberately includes no synthetic hero, match, or vision data. Uploads remain pending until the versioned official hero catalog and a real vision provider are configured. Redis workers, OpenAI vision, authentication, and live AOV sources are planned follow-up work.
+
+## Multi-source datafeed
+
+`python -m app.datafeed.cli` runs the community-source collectors and writes only normalized records with source URL, region, patch, and collection time. Current collectors: LienQuanMobi, Arena of Valor Fandom Vietnam, ROVMeta, and Liquipedia APL. Sources may disagree or refer to different regions; analytics must query by `region` and `patch_version` rather than treating them as one global meta.

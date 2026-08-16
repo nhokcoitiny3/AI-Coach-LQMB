@@ -1,3 +1,3 @@
-from app.models.entities import Hero, ImportedImage, Match, MatchPlayer, ParsingJob, Player
+from app.models.entities import DataFeedRun, DataSource, Hero, HeroCatalogSource, HeroMetaSnapshot, ImportedImage, Match, MatchPlayer, ParsingJob, Player
 
-__all__ = ["Hero", "ImportedImage", "Match", "MatchPlayer", "ParsingJob", "Player"]
+__all__ = ["DataFeedRun", "DataSource", "Hero", "HeroCatalogSource", "HeroMetaSnapshot", "ImportedImage", "Match", "MatchPlayer", "ParsingJob", "Player"]

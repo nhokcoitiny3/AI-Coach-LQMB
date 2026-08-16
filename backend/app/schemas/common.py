@@ -30,3 +30,7 @@ class ReviewUpdate(BaseModel):
     kills: int = Field(ge=0, le=99)
     deaths: int = Field(ge=0, le=99)
     assists: int = Field(ge=0, le=99)
+
+
+class DataFeedRefresh(BaseModel):
+    sources: list[str] | None = None
