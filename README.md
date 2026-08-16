@@ -2,6 +2,8 @@
 
 Docker-first MVP for importing match-result screenshots and scouting player hero pools. The host needs Docker Desktop with Docker Compose only; Python, Node.js, PostgreSQL, and npm are all contained in images.
 
+Dockerfiles use persistent BuildKit caches for pip, npm, and Next.js build artifacts. Dependency layers are also keyed only by `requirements.txt` and `package-lock.json`, so ordinary source changes do not download libraries again. Avoid `docker builder prune` when you want to retain these caches.
+
 ## Start locally
 
 ```bash

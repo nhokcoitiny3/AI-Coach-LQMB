@@ -1,7 +1,9 @@
+# syntax=docker/dockerfile:1.7
 FROM python:3.12-slim AS builder
 WORKDIR /build
 COPY requirements.txt .
-RUN python -m venv /venv && /venv/bin/pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,id=lien-quan-pip-cache,target=/root/.cache/pip \
+    python -m venv /venv && /venv/bin/pip install -r requirements.txt
 
 FROM python:3.12-slim
 WORKDIR /app
