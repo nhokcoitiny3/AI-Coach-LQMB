@@ -7,7 +7,7 @@ RUN --mount=type=cache,id=lien-quan-pip-cache,target=/root/.cache/pip \
 
 FROM python:3.12-slim
 WORKDIR /app
-ENV PATH="/venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PATH="/venv/bin:$PATH" PYTHONPATH=/app PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY --from=builder /venv /venv
 COPY . .
 RUN addgroup --system app && adduser --system --ingroup app app && mkdir -p /app/uploads && chown -R app:app /app

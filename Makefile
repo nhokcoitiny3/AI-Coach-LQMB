@@ -22,8 +22,8 @@ seed:
 test:
 	docker compose exec backend pytest
 lint:
-	docker compose exec backend ruff check . && docker compose exec frontend npm run lint
+	docker compose exec backend ruff check . && docker compose run --rm frontend-tools npm run lint
 format:
-	docker compose exec backend ruff format . && docker compose exec frontend npm run format
+	docker compose exec backend ruff format . && docker compose run --rm frontend-tools npm run format
 clean:
 	docker compose down -v --remove-orphans
