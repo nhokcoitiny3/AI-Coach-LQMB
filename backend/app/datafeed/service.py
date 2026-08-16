@@ -87,6 +87,14 @@ async def catalog_heroes(session, source_key: str = "rovmeta") -> list[dict]:
     return catalog
 
 
+async def catalog_hero(session, hero_id: str, source_key: str = "rovmeta") -> dict | None:
+    """Return one locally stored hero record with its source provenance."""
+    for hero in await catalog_heroes(session, source_key):
+        if hero["id"] == hero_id:
+            return hero
+    return None
+
+
 async def meta_dashboard(session) -> dict:
     heroes = await catalog_heroes(session)
     tier_counts: dict[str, int] = {}
