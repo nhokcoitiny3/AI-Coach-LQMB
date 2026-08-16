@@ -7,6 +7,7 @@ class HeroRecord:
     role: str = "unknown"
     aliases: list[str] = field(default_factory=list)
     source_url: str = ""
+    image_url: str | None = None
     region: str = "global"
     patch_version: str | None = None
     tier: str | None = None

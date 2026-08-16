@@ -36,12 +36,13 @@ async def _refresh_collector(collector: Collector, client: httpx.AsyncClient) ->
                     continue
                 hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalized))
                 if hero is None:
-                    hero = Hero(name=record.name, normalized_name=normalized, role=normalize_role(record.role), region=record.region, aliases=record.aliases, source_url=record.source_url, catalog_patch=record.patch_version, last_seen_at=datetime.now(timezone.utc))
+                    hero = Hero(name=record.name, normalized_name=normalized, role=normalize_role(record.role), region=record.region, aliases=record.aliases, source_url=record.source_url, image_url=record.image_url, catalog_patch=record.patch_version, last_seen_at=datetime.now(timezone.utc))
                     session.add(hero)
                     await session.flush()
                 else:
                     hero.aliases = sorted(set([*hero.aliases, record.name, *record.aliases]))
                     hero.role = hero.role if hero.role != "unknown" else normalize_role(record.role)
+                    hero.image_url = record.image_url or hero.image_url
                     hero.last_seen_at = datetime.now(timezone.utc)
                 catalog_source = await session.scalar(select(HeroCatalogSource).where(HeroCatalogSource.hero_id == hero.id, HeroCatalogSource.source_id == source.id))
                 if catalog_source is None:
@@ -83,7 +84,7 @@ async def catalog_heroes(session, source_key: str = "rovmeta") -> list[dict]:
         if hero.id in seen:
             continue
         seen.add(hero.id)
-        catalog.append({"id": str(hero.id), "name": hero.name, "role": hero.role, "aliases": hero.aliases, "tier": meta.tier, "pick_rate": meta.pick_rate, "ban_rate": meta.ban_rate, "win_rate": meta.win_rate, "patch_version": meta.patch_version, "region": meta.region, "source": source.key, "source_url": meta.source_url, "captured_at": meta.captured_at})
+        catalog.append({"id": str(hero.id), "name": hero.name, "role": hero.role, "aliases": hero.aliases, "image_url": hero.image_url, "tier": meta.tier, "pick_rate": meta.pick_rate, "ban_rate": meta.ban_rate, "win_rate": meta.win_rate, "patch_version": meta.patch_version, "region": meta.region, "source": source.key, "source_url": meta.source_url, "captured_at": meta.captured_at})
     return catalog
 
 

@@ -29,6 +29,7 @@ class Hero(TimestampedUUID):
     region: Mapped[str] = mapped_column(String(30), default="unknown")
     catalog_patch: Mapped[str | None] = mapped_column(String(50), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

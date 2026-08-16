@@ -92,7 +92,7 @@ class RovMetaCollector(Collector):
             text = page.get_text(" ", strip=True).replace("\\n", " ")
             tier = _first_group(r"\b([SABCDF])\s+TIER\b", text)
             tier = tier.upper() if tier else None
-            records.append(HeroRecord(name=name.get_text(" ", strip=True), role=_rov_role(page), region=self.region, source_url=hero_url, patch_version=patch, tier=tier))
+            records.append(HeroRecord(name=name.get_text(" ", strip=True), role=_rov_role(page), region=self.region, source_url=hero_url, image_url=_rov_image(page), patch_version=patch, tier=tier))
         return records
 
 
@@ -146,6 +146,13 @@ def _rov_role(soup: BeautifulSoup) -> str:
     # instead of a lane. Preserve it for normalize_role below.
     match = re.search(r"\bTIER\b\s+(assassin|mage|marksman|adc|warrior|fighter|tank|support)\b", text, re.IGNORECASE)
     return match.group(1) if match else "unknown"
+
+
+def _rov_image(soup: BeautifulSoup) -> str | None:
+    for image in soup.select("img[src]"):
+        if "portrait" in (image.get("alt") or "").lower():
+            return urljoin("https://www.rovmeta.com", image["src"])
+    return None
 
 
 def default_collectors() -> list[Collector]:
