@@ -1,0 +1,7 @@
+{
+  "name": "lien-quan-ai-coach-frontend",
+  "private": true,
+  "scripts": {"dev": "next dev -H 0.0.0.0", "build": "next build", "start": "next start -H 0.0.0.0", "lint": "eslint .", "format": "prettier --write ."},
+  "dependencies": {"next": "15.2.3", "react": "19.0.0", "react-dom": "19.0.0", "recharts": "2.15.1"},
+  "devDependencies": {"@types/node": "22.14.0", "@types/react": "19.0.10", "@types/react-dom": "19.0.4", "autoprefixer": "10.4.21", "eslint": "9.23.0", "eslint-config-next": "15.2.3", "postcss": "8.5.3", "prettier": "3.5.3", "tailwindcss": "3.4.17", "typescript": "5.8.2"}
+}
