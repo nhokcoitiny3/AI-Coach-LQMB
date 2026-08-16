@@ -1,28 +1,6 @@
 from datetime import datetime, timezone
-from pathlib import Path
-from uuid import UUID
 from sqlalchemy import select
-from app.db.session import SessionLocal
-from app.models import Hero, Match, ParsingJob
-from app.vision.parser import get_vision_parser
-
-
-async def process_job(job_id: UUID) -> None:
-    async with SessionLocal() as session:
-        job = await session.get(ParsingJob, job_id)
-        if not job: return
-        job.status = "processing"; await session.commit()
-        try:
-            parsed = await get_vision_parser().parse_match_screenshot(Path(job.image.stored_path))
-            job.parsed_payload = parsed.to_dict()
-            if parsed.confidence < 0.8:
-                job.status = "review"
-            else:
-                await persist_match(session, job, job.image.player_id, parsed.to_dict())
-                job.status = "completed"
-            await session.commit()
-        except Exception as exc:
-            job.status = "failed"; job.error = str(exc); await session.commit()
+from app.models import Hero, Match
 
 
 async def persist_match(session, job, player_id, data: dict) -> Match:

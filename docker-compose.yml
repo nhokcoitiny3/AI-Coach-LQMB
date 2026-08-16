@@ -20,7 +20,7 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/lien_quan}
-      VISION_PROVIDER: ${VISION_PROVIDER:-mock}
+      VISION_PROVIDER: ${VISION_PROVIDER:-}
       VISION_API_KEY: ${VISION_API_KEY:-}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
     volumes:

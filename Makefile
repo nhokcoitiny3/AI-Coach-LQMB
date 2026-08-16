@@ -1,4 +1,4 @@
-.PHONY: up down build logs backend-shell frontend-shell db-shell migrate migration seed test lint format clean
+.PHONY: up down build logs backend-shell frontend-shell db-shell migrate migration test lint format clean
 up:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 down:
@@ -17,8 +17,6 @@ migrate:
 	docker compose exec backend alembic upgrade head
 migration:
 	docker compose exec backend alembic revision --autogenerate -m "$(MESSAGE)"
-seed:
-	docker compose exec backend python -m app.db.seed
 test:
 	docker compose exec backend pytest
 lint:

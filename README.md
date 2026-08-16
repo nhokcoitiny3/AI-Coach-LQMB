@@ -13,7 +13,6 @@ cp .env.example .env
 docker compose build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 docker compose exec backend alembic upgrade head
-docker compose exec backend python -m app.db.seed
 ```
 
 Open the frontend at http://localhost:3000, the backend at http://localhost:8000, and API documentation at http://localhost:8000/docs.
@@ -25,9 +24,8 @@ Open the frontend at http://localhost:3000, the backend at http://localhost:8000
 docker compose logs -f
 docker compose down
 
-# database, seed, test, lint, formatting
+# database, test, lint, formatting
 docker compose exec backend alembic upgrade head
-docker compose exec backend python -m app.db.seed
 docker compose exec backend pytest
 docker compose exec backend ruff check .
 docker compose run --rm frontend-tools npm run lint
@@ -47,10 +45,10 @@ Production has no source bind mounts and uses persistent database and upload vol
 
 ## Environment
 
-Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `VISION_API_KEY`, and `MAX_UPLOAD_SIZE_MB`. The MVP supports `VISION_PROVIDER=mock`; no external AI key is necessary.
+Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `VISION_API_KEY`, and `MAX_UPLOAD_SIZE_MB`. Leave `VISION_PROVIDER` empty until the real datafeed and vision provider are configured.
 
 If host port `8000` is already occupied, set `BACKEND_PORT=8001`. The frontend proxies browser API requests internally, so its public URL does not need to change.
 
 ## Current limitations
 
-Mock Vision derives realistic deterministic results from image bytes rather than reading game UI. Background parsing is process-local, so jobs do not survive a backend restart while actively processing. Redis workers, OpenAI vision, authentication, and live AOV sources are planned follow-up work.
+The project deliberately includes no synthetic hero, match, or vision data. Uploads remain pending until the versioned official hero catalog and a real vision provider are configured. Redis workers, OpenAI vision, authentication, and live AOV sources are planned follow-up work.

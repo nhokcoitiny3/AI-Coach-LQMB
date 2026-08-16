@@ -1,3 +1,3 @@
 # Fixtures
 
-Backend parser tests create their own byte fixtures; this directory is reserved for future visual regression and real-vision fixtures.
+Reserved for curated, permissioned test fixtures from the datafeed and vision pipeline. Do not add synthetic hero or match data.
