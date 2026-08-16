@@ -26,7 +26,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +50,16 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks: [app_network]
+
+  frontend-tools:
+    build:
+      context: ./frontend
+      target: builder
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    profiles: [tools]
+    entrypoint: []
     networks: [app_network]
 
 volumes:

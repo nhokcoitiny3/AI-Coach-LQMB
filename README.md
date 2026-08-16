@@ -30,9 +30,9 @@ docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.db.seed
 docker compose exec backend pytest
 docker compose exec backend ruff check .
-docker compose exec frontend npm run lint
+docker compose run --rm frontend-tools npm run lint
 docker compose exec backend ruff format .
-docker compose exec frontend npm run format
+docker compose run --rm frontend-tools npm run format
 ```
 
 `Makefile` provides the same shortcuts when `make` is already available, but it is never required.
@@ -48,6 +48,8 @@ Production has no source bind mounts and uses persistent database and upload vol
 ## Environment
 
 Copy `.env.example` to `.env`. The relevant values are `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NEXT_PUBLIC_API_URL`, `VISION_PROVIDER`, `VISION_API_KEY`, and `MAX_UPLOAD_SIZE_MB`. The MVP supports `VISION_PROVIDER=mock`; no external AI key is necessary.
+
+If host port `8000` is already occupied, set both `BACKEND_PORT=8001` and `NEXT_PUBLIC_API_URL=http://localhost:8001` before building the frontend.
 
 ## Current limitations
 
