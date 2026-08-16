@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
-from app.datafeed.models import HeroRecord
+from app.datafeed.models import CounterRecord, HeroRecord
 
 
 class Collector(ABC):
@@ -157,3 +157,37 @@ def _rov_image(soup: BeautifulSoup) -> str | None:
 
 def default_collectors() -> list[Collector]:
     return [LienQuanMobiCollector(), FandomVietnamCollector(), RovMetaCollector(), LiquipediaAplCollector()]
+
+
+class AovBuildsCounterCollector:
+    key = "aov_builds_counters"
+    name = "AOV Builds counter picks"
+    base_url = "https://aov-builds.com/khac-che/"
+    region = "vn"
+
+    async def collect(self, client: httpx.AsyncClient) -> list[CounterRecord]:
+        response = await client.get(self.base_url)
+        response.raise_for_status()
+        index = BeautifulSoup(response.text, "html.parser")
+        urls = {urljoin(self.base_url, link["href"]) for link in index.select("a[href]") if "/khac-che/" in link["href"] and link["href"].rstrip("/") != self.base_url.rstrip("/")}
+        records: list[CounterRecord] = []
+        for source_url in sorted(urls):
+            await asyncio.sleep(0.2)
+            page_response = await client.get(source_url)
+            if page_response.status_code != 200:
+                continue
+            page = BeautifulSoup(page_response.text, "html.parser")
+            heading = page.select_one("h2")
+            text = page.get_text(" ", strip=True)
+            listed = re.search(r"Tướng khắc chế\s+.+?\s+gồm:\s*(.+?)(?:\.\s|\. Đây)", text, re.IGNORECASE)
+            if not heading or not listed:
+                continue
+            names = [re.split(r"\s+(?:là|gồm|bao gồm)\s+", name, maxsplit=1, flags=re.IGNORECASE)[0].strip().removeprefix("và ").strip() for name in listed.group(1).split(",")]
+            names = [name for name in names if name and len(name) <= 80]
+            if names:
+                records.append(CounterRecord(hero_name=heading.get_text(" ", strip=True), counter_names=names, source_url=source_url))
+        return records
+
+
+def default_counter_collectors() -> list[AovBuildsCounterCollector]:
+    return [AovBuildsCounterCollector()]

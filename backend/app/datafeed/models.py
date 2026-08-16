@@ -15,3 +15,10 @@ class HeroRecord:
     ban_rate: float | None = None
     win_rate: float | None = None
     sample_size: int | None = None
+
+
+@dataclass
+class CounterRecord:
+    hero_name: str
+    counter_names: list[str]
+    source_url: str

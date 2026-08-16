@@ -88,6 +88,19 @@ class HeroCatalogSource(TimestampedUUID):
     __table_args__ = (UniqueConstraint("hero_id", "source_id", name="uq_hero_catalog_source"),)
 
 
+class HeroCounter(TimestampedUUID):
+    __tablename__ = "hero_counters"
+    hero_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("heroes.id", ondelete="CASCADE"), index=True)
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"), index=True)
+    counter_name: Mapped[str] = mapped_column(String(100))
+    normalized_counter_name: Mapped[str] = mapped_column(String(100), index=True)
+    source_url: Mapped[str] = mapped_column(String(500))
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    hero: Mapped[Hero] = relationship()
+    source: Mapped[DataSource] = relationship()
+    __table_args__ = (Index("ix_counter_source_hero", "source_id", "hero_id"),)
+
+
 class Match(TimestampedUUID):
     __tablename__ = "matches"
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)

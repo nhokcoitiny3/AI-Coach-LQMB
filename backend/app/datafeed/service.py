@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
-from app.datafeed.collectors import Collector, default_collectors
+from app.datafeed.collectors import Collector, default_collectors, default_counter_collectors
 from app.datafeed.normalizer import normalize_name, normalize_role
 from app.db.session import SessionLocal
-from app.models import DataFeedRun, DataSource, Hero, HeroCatalogSource, HeroMetaSnapshot
+from app.models import DataFeedRun, DataSource, Hero, HeroCatalogSource, HeroCounter, HeroMetaSnapshot
 
 
 async def refresh_datafeed(source_keys: set[str] | None = None) -> list[str]:
@@ -14,6 +14,9 @@ async def refresh_datafeed(source_keys: set[str] | None = None) -> list[str]:
     async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers={"User-Agent": "LienQuanAICoachDatafeed/0.1 (+local research; contact: admin@example.invalid)"}) as client:
         for collector in collectors:
             await _refresh_collector(collector, client)
+        for collector in default_counter_collectors():
+            if source_keys is None or collector.key in source_keys:
+                await _refresh_counter_collector(collector, client)
     return [collector.key for collector in collectors]
 
 
@@ -26,6 +29,36 @@ async def _refresh_collector(collector: Collector, client: httpx.AsyncClient) ->
             await session.flush()
         run = DataFeedRun(source_id=source.id, status="running")
         session.add(run)
+        await session.commit()
+
+
+async def _refresh_counter_collector(collector, client: httpx.AsyncClient) -> None:
+    async with SessionLocal() as session:
+        source = await session.scalar(select(DataSource).where(DataSource.key == collector.key))
+        if source is None:
+            source = DataSource(key=collector.key, name=collector.name, base_url=collector.base_url, region=collector.region)
+            session.add(source)
+            await session.flush()
+        run = DataFeedRun(source_id=source.id, status="running")
+        session.add(run)
+        await session.commit()
+        try:
+            records = await collector.collect(client)
+            run.records_seen = len(records)
+            await session.execute(delete(HeroCounter).where(HeroCounter.source_id == source.id))
+            heroes = {hero.normalized_name: hero for hero in (await session.scalars(select(Hero))).all() if hero.normalized_name}
+            for record in records:
+                hero = heroes.get(normalize_name(record.hero_name))
+                if hero is None:
+                    continue
+                for counter_name in record.counter_names:
+                    session.add(HeroCounter(hero_id=hero.id, source_id=source.id, counter_name=counter_name, normalized_counter_name=normalize_name(counter_name), source_url=record.source_url))
+                    run.records_written += 1
+            run.status = "completed"
+        except Exception as exc:
+            run.status = "failed"
+            run.error = str(exc)[:2000]
+        run.finished_at = datetime.now(timezone.utc)
         await session.commit()
         try:
             records = await collector.collect(client)
@@ -94,6 +127,20 @@ async def catalog_hero(session, hero_id: str, source_key: str = "rovmeta") -> di
         if hero["id"] == hero_id:
             return hero
     return None
+
+
+async def hero_counters(session, hero_id: str) -> list[dict]:
+    rows = list((await session.scalars(select(HeroCounter).where(HeroCounter.hero_id == hero_id).order_by(HeroCounter.captured_at.desc()))).all())
+    known_heroes = {hero.normalized_name: hero for hero in (await session.scalars(select(Hero))).all() if hero.normalized_name}
+    seen: set[str] = set()
+    result = []
+    for row in rows:
+        if row.normalized_counter_name in seen:
+            continue
+        seen.add(row.normalized_counter_name)
+        known = known_heroes.get(row.normalized_counter_name)
+        result.append({"name": row.counter_name, "hero_id": None if known is None else str(known.id), "image_url": None if known is None else known.image_url, "source_url": row.source_url, "captured_at": row.captured_at})
+    return result
 
 
 async def meta_dashboard(session) -> dict:

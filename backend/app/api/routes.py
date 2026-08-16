@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_session
 from app.models import ImportedImage, ParsingJob, Player
-from app.datafeed.service import catalog_hero, catalog_heroes, list_datafeed_status, meta_dashboard, refresh_datafeed
+from app.datafeed.service import catalog_hero, catalog_heroes, hero_counters, list_datafeed_status, meta_dashboard, refresh_datafeed
 from app.schemas.common import DataFeedRefresh, JobOut, PlayerCreate, PlayerOut, ReviewUpdate
 from app.services.ingestion import persist_match, process_job
 from app.services.scout import scout
@@ -33,6 +33,11 @@ async def hero_catalog_detail(hero_id: uuid.UUID, session: AsyncSession = Depend
     if hero is None:
         raise HTTPException(404, "Không tìm thấy tướng trong datafeed")
     return hero
+
+
+@router.get("/catalog/heroes/{hero_id}/counters")
+async def hero_counter_catalog(hero_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    return await hero_counters(session, str(hero_id))
 
 
 @router.get("/meta/dashboard")
