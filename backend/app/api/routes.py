@@ -113,3 +113,16 @@ async def confirm_review(job_id: uuid.UUID, body: ReviewUpdate, session: AsyncSe
     if not job or job.status != "review": raise HTTPException(404, "Không tìm thấy bản cần duyệt")
     data = body.model_dump() | {"confidence": 1.0}
     await persist_match(session, job, job.image.player_id, data); job.status = "completed"; await session.commit(); await session.refresh(job); return job
+
+
+@router.put("/jobs/{job_id}/manual-review", response_model=JobOut)
+async def manual_review(job_id: uuid.UUID, body: ReviewUpdate, session: AsyncSession = Depends(get_session)):
+    job = await session.get(ParsingJob, job_id)
+    if not job or job.status not in {"pending", "review"}:
+        raise HTTPException(404, "Job is not available for review")
+    data = body.model_dump() | {"confidence": 1.0}
+    await persist_match(session, job, job.image.player_id, data)
+    job.status = "completed"
+    await session.commit()
+    await session.refresh(job)
+    return job
