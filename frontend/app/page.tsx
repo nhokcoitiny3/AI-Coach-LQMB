@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function Home(){return <main className="py-24"><p className="text-cyan-400">MVP Docker-first</p><h1 className="mt-3 text-5xl font-bold">Liên Quân AI Coach</h1><p className="mt-5 max-w-xl text-slate-300">Nhập ảnh lịch sử trận đấu, kiểm tra dữ liệu và khám phá hero pool của người chơi.</p><Link href="/players" className="button mt-8 inline-block">Mở Player Scout</Link></main>}
