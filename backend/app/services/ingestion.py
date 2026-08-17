@@ -17,9 +17,10 @@ async def process_job(job_id) -> None:
         await session.commit()
         try:
             heroes = list((await session.scalars(select(Hero).order_by(Hero.name))).all())
-            parsed_matches = await get_vision_parser([hero.name for hero in heroes]).parse_match_screenshot(Path(job.image.stored_path))
+            hero_lookup = {normalize_name(alias): hero for hero in heroes for alias in [hero.name, *hero.aliases] if normalize_name(alias)}
+            parsed_matches = await get_vision_parser(sorted({alias for hero in heroes for alias in [hero.name, *hero.aliases] if alias})).parse_match_screenshot(Path(job.image.stored_path))
             data = {"matches": [parsed.to_dict() for parsed in parsed_matches]}
-            valid = [await session.scalar(select(Hero).where(Hero.normalized_name == normalize_name(parsed.hero))) for parsed in parsed_matches]
+            valid = [hero_lookup.get(normalize_name(parsed.hero)) for parsed in parsed_matches]
             if any(hero is None or parsed.confidence < 0.8 for hero, parsed in zip(valid, parsed_matches)):
                 job.status = "review"
                 job.parsed_payload = data

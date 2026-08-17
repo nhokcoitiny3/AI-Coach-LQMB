@@ -45,7 +45,9 @@ async def _refresh_collector(collector: Collector, client: httpx.AsyncClient) ->
                 else:
                     hero.aliases = sorted(set([*hero.aliases, record.name, *record.aliases]))
                     hero.role = hero.role if hero.role != "unknown" else normalize_role(record.role)
-                    hero.image_url = record.image_url or hero.image_url
+                    # Keep the current Vietnamese catalog portrait once found.
+                    if record.image_url and (record.region == "vn" or not hero.image_url):
+                        hero.image_url = record.image_url
                     hero.last_seen_at = datetime.now(timezone.utc)
                 catalog_source = await session.scalar(select(HeroCatalogSource).where(HeroCatalogSource.hero_id == hero.id, HeroCatalogSource.source_id == source.id))
                 if catalog_source is None:

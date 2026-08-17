@@ -41,9 +41,12 @@ class LienQuanMobiCollector(Collector):
             await asyncio.sleep(0.15)
             detail = await client.get(hero_url)
             role = "unknown"
+            image_url = None
             if detail.status_code == 200:
-                role = _lq_role(BeautifulSoup(detail.text, "html.parser"))
-            records.append(HeroRecord(name=name, role=role, region=self.region, source_url=hero_url))
+                page = BeautifulSoup(detail.text, "html.parser")
+                role = _lq_role(page)
+                image_url = _lq_image(page, hero_url)
+            records.append(HeroRecord(name=name, role=role, region=self.region, source_url=hero_url, image_url=image_url))
         return records
 
 
@@ -152,6 +155,19 @@ def _rov_image(soup: BeautifulSoup) -> str | None:
     for image in soup.select("img[src]"):
         if "portrait" in (image.get("alt") or "").lower():
             return urljoin("https://www.rovmeta.com", image["src"])
+    return None
+
+
+def _lq_image(soup: BeautifulSoup, page_url: str) -> str | None:
+    """Use the current Vietnamese hero-page social/portrait image when available."""
+    for selector, attribute in (("meta[property='og:image']", "content"), ("meta[name='twitter:image']", "content")):
+        image = soup.select_one(selector)
+        if image and image.get(attribute):
+            return urljoin(page_url, image[attribute])
+    for image in soup.select("img[src]"):
+        source = image.get("src", "")
+        if any(token in source.lower() for token in ("tuong", "hero", "character")):
+            return urljoin(page_url, source)
     return None
 
 
