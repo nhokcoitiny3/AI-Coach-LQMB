@@ -30,6 +30,43 @@ async def _refresh_collector(collector: Collector, client: httpx.AsyncClient) ->
         run = DataFeedRun(source_id=source.id, status="running")
         session.add(run)
         await session.commit()
+        try:
+            records = await collector.collect(client)
+            run.records_seen = len(records)
+            for record in records:
+                normalized = normalize_name(record.name)
+                if not normalized:
+                    continue
+                hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalized))
+                if hero is None:
+                    hero = Hero(name=record.name, normalized_name=normalized, role=normalize_role(record.role), region=record.region, aliases=record.aliases, source_url=record.source_url, image_url=record.image_url, catalog_patch=record.patch_version, last_seen_at=datetime.now(timezone.utc))
+                    session.add(hero)
+                    await session.flush()
+                else:
+                    hero.aliases = sorted(set([*hero.aliases, record.name, *record.aliases]))
+                    hero.role = hero.role if hero.role != "unknown" else normalize_role(record.role)
+                    hero.image_url = record.image_url or hero.image_url
+                    hero.last_seen_at = datetime.now(timezone.utc)
+                catalog_source = await session.scalar(select(HeroCatalogSource).where(HeroCatalogSource.hero_id == hero.id, HeroCatalogSource.source_id == source.id))
+                if catalog_source is None:
+                    session.add(HeroCatalogSource(hero_id=hero.id, source_id=source.id, source_name=record.name, source_role=record.role, source_url=record.source_url, region=record.region, patch_version=record.patch_version, aliases=record.aliases))
+                else:
+                    catalog_source.source_name = record.name
+                    catalog_source.source_role = record.role
+                    catalog_source.source_url = record.source_url
+                    catalog_source.region = record.region
+                    catalog_source.patch_version = record.patch_version
+                    catalog_source.aliases = record.aliases
+                    catalog_source.fetched_at = datetime.now(timezone.utc)
+                if any(value is not None for value in (record.tier, record.pick_rate, record.ban_rate, record.win_rate)):
+                    session.add(HeroMetaSnapshot(hero_id=hero.id, source_id=source.id, region=record.region, patch_version=record.patch_version, tier=record.tier, pick_rate=record.pick_rate, ban_rate=record.ban_rate, win_rate=record.win_rate, sample_size=record.sample_size, source_url=record.source_url))
+                run.records_written += 1
+            run.status = "completed"
+        except Exception as exc:
+            run.status = "failed"
+            run.error = str(exc)[:2000]
+        run.finished_at = datetime.now(timezone.utc)
+        await session.commit()
 
 
 async def _refresh_counter_collector(collector, client: httpx.AsyncClient) -> None:
@@ -54,44 +91,6 @@ async def _refresh_counter_collector(collector, client: httpx.AsyncClient) -> No
                 for counter_name in record.counter_names:
                     session.add(HeroCounter(hero_id=hero.id, source_id=source.id, counter_name=counter_name, normalized_counter_name=normalize_name(counter_name), source_url=record.source_url))
                     run.records_written += 1
-            run.status = "completed"
-        except Exception as exc:
-            run.status = "failed"
-            run.error = str(exc)[:2000]
-        run.finished_at = datetime.now(timezone.utc)
-        await session.commit()
-        try:
-            records = await collector.collect(client)
-            run.records_seen = len(records)
-            for record in records:
-                normalized = normalize_name(record.name)
-                if not normalized:
-                    continue
-                hero = await session.scalar(select(Hero).where(Hero.normalized_name == normalized))
-                if hero is None:
-                    hero = Hero(name=record.name, normalized_name=normalized, role=normalize_role(record.role), region=record.region, aliases=record.aliases, source_url=record.source_url, image_url=record.image_url, catalog_patch=record.patch_version, last_seen_at=datetime.now(timezone.utc))
-                    session.add(hero)
-                    await session.flush()
-                else:
-                    hero.aliases = sorted(set([*hero.aliases, record.name, *record.aliases]))
-                    hero.role = hero.role if hero.role != "unknown" else normalize_role(record.role)
-                    hero.image_url = record.image_url or hero.image_url
-                    hero.last_seen_at = datetime.now(timezone.utc)
-                catalog_source = await session.scalar(select(HeroCatalogSource).where(HeroCatalogSource.hero_id == hero.id, HeroCatalogSource.source_id == source.id))
-                if catalog_source is None:
-                    catalog_source = HeroCatalogSource(hero_id=hero.id, source_id=source.id, source_name=record.name, source_role=record.role, source_url=record.source_url, region=record.region, patch_version=record.patch_version, aliases=record.aliases)
-                    session.add(catalog_source)
-                else:
-                    catalog_source.source_name = record.name
-                    catalog_source.source_role = record.role
-                    catalog_source.source_url = record.source_url
-                    catalog_source.region = record.region
-                    catalog_source.patch_version = record.patch_version
-                    catalog_source.aliases = record.aliases
-                    catalog_source.fetched_at = datetime.now(timezone.utc)
-                if any(value is not None for value in (record.tier, record.pick_rate, record.ban_rate, record.win_rate)):
-                    session.add(HeroMetaSnapshot(hero_id=hero.id, source_id=source.id, region=record.region, patch_version=record.patch_version, tier=record.tier, pick_rate=record.pick_rate, ban_rate=record.ban_rate, win_rate=record.win_rate, sample_size=record.sample_size, source_url=record.source_url))
-                run.records_written += 1
             run.status = "completed"
         except Exception as exc:
             run.status = "failed"
