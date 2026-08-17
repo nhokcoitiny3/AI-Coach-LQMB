@@ -5,6 +5,18 @@ import { API, Job } from "@/lib/api";
 
 type ReviewData = { hero: string; role: string; result: string; kills: string; deaths: string; assists: string };
 
+const progress = {
+  queued: ["Đang chờ AI", "Ảnh đã nhận, đang xếp hàng xử lý."],
+  processing: ["AI đang đọc ảnh", "Đang nhận diện tướng, kết quả và KDA."],
+  completed: ["Đã lưu", "Kết quả đã được thêm vào lịch sử trận."],
+  failed: ["Xử lý lỗi", "Không thể đọc ảnh. Hãy thử ảnh rõ hơn hoặc nhập tay."],
+} as const;
+
+function JobProgress({ job }: { job: Job }) {
+  const [label, detail] = progress[job.status as keyof typeof progress] || [job.status, "Đang cập nhật trạng thái."];
+  return <div className="card"><div className="flex items-center justify-between gap-3"><div><b className={job.status === "failed" ? "text-rose-300" : job.status === "completed" ? "text-emerald-300" : "text-cyan-300"}>{label}</b><p className="mt-1 text-sm text-slate-400">{detail}</p>{job.error && <p className="mt-2 text-sm text-rose-300">{job.error}</p>}</div><span className="font-mono text-xs text-slate-400">{job.id.slice(0, 8)}</span></div>{["queued", "processing"].includes(job.status) && <div className="mt-3 h-1.5 overflow-hidden rounded bg-slate-800"><div className="h-full w-2/3 animate-pulse rounded bg-cyan-400"/></div>}</div>;
+}
+
 function ReviewCard({ job, onDone }: { job: Job; onDone: () => void }) {
   const parsed = job.parsed_payload || {};
   const sourceRows = Array.isArray(parsed.matches) ? parsed.matches as Record<string, unknown>[] : [parsed];
@@ -20,5 +32,5 @@ export function ImportReview({ playerId }: { playerId: string }) {
   const load = useCallback(() => fetch(`${API}/api/v1/players/${playerId}/jobs`).then(response => response.ok ? response.json() : []).then(setJobs), [playerId]);
   useEffect(() => { void load(); const timer = setInterval(load, 2500); return () => clearInterval(timer); }, [load]);
   async function submit(event: React.FormEvent) { event.preventDefault(); if (!files) return; setLoading(true); setUploadError(""); const form = new FormData(); Array.from(files).forEach(file => form.append("files", file)); const response = await fetch(`${API}/api/v1/players/${playerId}/screenshots`, { method: "POST", body: form }); if (!response.ok) { const body = await response.json().catch(() => ({})); setUploadError(body.detail || "Tải ảnh thất bại."); } setLoading(false); void load(); }
-  return <div className="space-y-5"><form onSubmit={submit} className="card"><h2 className="mb-2 font-semibold">Nhập ảnh lịch sử đấu</h2><p className="mb-3 text-sm text-slate-400">Hỗ trợ ảnh nhiều dòng trận như Lịch sử đấu. AI sẽ tách từng dòng, bạn duyệt lại trước khi lưu.</p><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => setFiles(event.target.files)}/><button className="button ml-3" disabled={!files || loading}>{loading ? "Đang tải…" : "Tải ảnh lên"}</button>{uploadError && <p className="mt-3 text-sm text-rose-400">{uploadError}</p>}</form><section className="space-y-3">{jobs.length === 0 && <div className="card text-slate-400">Chưa có ảnh nào. Tải ảnh lịch sử đấu để bắt đầu.</div>}{jobs.map(job => job.status === "completed" ? <div className="card" key={job.id}><b>Đã lưu</b><span className="ml-3 text-slate-400">{job.id.slice(0, 8)}</span></div> : <ReviewCard key={job.id} job={job} onDone={load}/>)}</section></div>;
+  return <div className="space-y-5"><form onSubmit={submit} className="card"><h2 className="mb-2 font-semibold">Nhập ảnh lịch sử đấu</h2><p className="mb-3 text-sm text-slate-400">Hỗ trợ ảnh nhiều dòng trận như Lịch sử đấu. AI sẽ tách từng dòng, bạn duyệt lại trước khi lưu.</p><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => setFiles(event.target.files)}/><button className="button ml-3" disabled={!files || loading}>{loading ? "Đang tải…" : "Tải ảnh lên"}</button>{uploadError && <p className="mt-3 text-sm text-rose-400">{uploadError}</p>}</form><section className="space-y-3">{jobs.length === 0 && <div className="card text-slate-400">Chưa có ảnh nào. Tải ảnh lịch sử đấu để bắt đầu.</div>}{jobs.map(job => job.status === "review" ? <ReviewCard key={job.id} job={job} onDone={load}/> : <JobProgress key={job.id} job={job}/>)}</section></div>;
 }
