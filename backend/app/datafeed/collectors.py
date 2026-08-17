@@ -122,6 +122,31 @@ class LiquipediaAplCollector(Collector):
         return records
 
 
+class LqmbGgCollector(Collector):
+    key = "lqmb_gg"
+    name = "LQMB.GG Vietnam meta"
+    base_url = "https://lienquanmobile.gg/champions/"
+    region = "vn"
+
+    async def collect(self, client: httpx.AsyncClient) -> list[HeroRecord]:
+        response = await client.get(self.base_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        records: list[HeroRecord] = []
+        for row in soup.select("table tr"):
+            cells = row.select("th,td")
+            link = row.select_one("a[href]")
+            if len(cells) < 6 or link is None:
+                continue
+            name, tier = cells[0].get_text(" ", strip=True), cells[1].get_text(" ", strip=True).upper()
+            if not name or tier not in {"S", "A", "B", "C", "D", "F"}:
+                continue
+            image = row.select_one("img[src]")
+            rates = [_to_percent(cell.get_text(" ", strip=True)) for cell in cells[3:6]]
+            records.append(HeroRecord(name=name, role="unknown", region=self.region, source_url=urljoin(self.base_url, link["href"]), image_url=None if image is None else urljoin(self.base_url, image["src"]), patch_version="VN current", tier=tier, win_rate=rates[0], pick_rate=rates[1], ban_rate=rates[2]))
+        return records
+
+
 def _first_group(pattern: str, value: str) -> str | None:
     match = re.search(pattern, value, re.IGNORECASE)
     return match.group(1) if match else None
@@ -172,7 +197,7 @@ def _lq_image(soup: BeautifulSoup, page_url: str) -> str | None:
 
 
 def default_collectors() -> list[Collector]:
-    return [LienQuanMobiCollector(), FandomVietnamCollector(), RovMetaCollector(), LiquipediaAplCollector()]
+    return [LienQuanMobiCollector(), LqmbGgCollector(), FandomVietnamCollector(), RovMetaCollector(), LiquipediaAplCollector()]
 
 
 class AovBuildsCounterCollector:

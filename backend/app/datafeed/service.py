@@ -110,7 +110,7 @@ async def list_datafeed_status(session):
     return result
 
 
-async def catalog_heroes(session, source_key: str = "rovmeta") -> list[dict]:
+async def catalog_heroes(session, source_key: str = "lqmb_gg") -> list[dict]:
     rows = (await session.execute(select(Hero, HeroMetaSnapshot, DataSource).join(HeroMetaSnapshot, HeroMetaSnapshot.hero_id == Hero.id).join(DataSource, DataSource.id == HeroMetaSnapshot.source_id).where(DataSource.key == source_key).order_by(Hero.id, HeroMetaSnapshot.captured_at.desc()))).all()
     seen: set = set()
     catalog = []
@@ -122,7 +122,7 @@ async def catalog_heroes(session, source_key: str = "rovmeta") -> list[dict]:
     return catalog
 
 
-async def catalog_hero(session, hero_id: str, source_key: str = "rovmeta") -> dict | None:
+async def catalog_hero(session, hero_id: str, source_key: str = "lqmb_gg") -> dict | None:
     """Return one locally stored hero record with its source provenance."""
     for hero in await catalog_heroes(session, source_key):
         if hero["id"] == hero_id:
